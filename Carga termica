@@ -1,0 +1,66 @@
+from geopy.geocoders import Nominatim
+
+def get_city_coordinates(city):
+    geolocator = Nominatim(user_agent="geoapiExercises")
+    location = geolocator.geocode(city)
+
+    if location:
+        latitude = location.latitude
+        longitude = location.longitude
+        return latitude, longitude
+    else:
+        print(f"Não foi possível obter as coordenadas para a cidade: {city}")
+        return None
+
+# Solicitar o nome da cidade ao usuário
+cidade = input("Digite o nome da cidade: ")
+
+# Obter as coordenadas de latitude e longitude
+latitude, longitude = get_city_coordinates(cidade)
+
+Ambiente = input ("Nome do Cômodo: ")
+altura = float(input ("Altura do cômodo em metros: "))
+comprimento = float(input ("Comprimento do cômodo em metros: "))
+largura = float(input ("Largura do cômodo em metros: "))
+area_da_parede = float(2*(altura*comprimento) + 2*(altura*largura))
+area_do_teto_piso = float(comprimento*largura)
+
+
+def create_window_list():
+    window_list = []
+
+    while True:
+        window_name = input("Digite o nome da janela (ou 'sair' para encerrar): ")
+        if window_name.lower() == 'sair':
+            break
+
+        window_width = float(input("Digite a largura da janela em metros: "))
+        window_height = float(input("Digite a altura da janela em metros: "))
+
+        cardinal_direction = input("Digite a direção cardeal da janela (N, S, L, O): ")
+
+        window = {
+            'nome': window_name,
+            'largura': window_width,
+            'altura': window_height,
+            'direcao': cardinal_direction,
+            'área': (window_width*window_height)
+        }
+
+        window_list.append(window)
+
+    return window_list
+
+def print_window_details(window_list):
+    print("\nDetalhes das Janelas:")
+    for idx, window in enumerate(window_list, start=1):
+        print(f"{idx}. {window['nome']} - Largura: {window['largura']}m, Altura: {window['altura']}m, Área: {window['área']}m², Direção: {window['direcao']}")
+
+janelas = create_window_list()
+
+if latitude and longitude:
+    print(f"Latitude: {latitude}, Longitude: {longitude}")
+print(f"Área total das paredes: {area_da_parede}m².")
+print(f"Área do piso:{area_do_teto_piso}m²")
+print(f"Área do teto:{area_do_teto_piso}m²")
+print_window_details(janelas)
