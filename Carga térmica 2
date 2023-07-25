@@ -1,0 +1,75 @@
+import pandas as pd
+import pvlib
+from geopy.geocoders import Nominatim
+
+def obter_latitude_longitude_altitude(nome_cidade):
+    geolocator = Nominatim(user_agent="irradiacao_solar_app")
+    location = geolocator.geocode(nome_cidade)
+    return location.latitude, location.longitude, location.altitude
+
+def calcular_irradiacao_solar(latitude, longitude, altitude, data_hora, surface_azimuth):
+    # Criar um objeto de localização pvlib usando os dados do ponto
+    localizacao = pvlib.location.Location(latitude, longitude, tz='UTC', altitude=altitude)
+
+    # Calcular os ângulos solares para a data e hora fornecidas
+    solar_position = localizacao.get_solarposition(data_hora)
+
+    # Calcular a irradiação do céu claro (sem nuvens) para a data e hora fornecidas
+    linke_turbidity = 3.0  # Valor típico para o coeficiente de turbidez de Linke
+    clearsky = localizacao.get_clearsky(data_hora, linke_turbidity=linke_turbidity)
+
+    # Calcular a irradiação total no plano horizontal (GHI - Global Horizontal Irradiance)
+    irradiance = pvlib.irradiance.get_total_irradiance(
+        surface_tilt=90,  # Ângulo de inclinação do plano vertical (90 para o plano vertical)
+        surface_azimuth=surface_azimuth,  # Ângulo de azimute do plano horizontal fornecido pelo usuário
+        dni=clearsky['dni'],
+        ghi=clearsky['ghi'],
+        dhi=clearsky['dhi'],
+        solar_zenith=solar_position['apparent_zenith'],
+        solar_azimuth=solar_position['azimuth']
+    )
+
+    # Obter a irradiação global no plano horizontal (GHI - Global Horizontal Irradiance)
+    irradiacao_global_horizontal = irradiance['poa_global']
+
+    return irradiacao_global_horizontal
+
+if __name__ == "__main__":
+    # Obter o nome da cidade do usuário
+    nome_cidade = input("Digite o nome da cidade: ")
+
+    # Obter a latitude, longitude e altitude da cidade
+    latitude, longitude, altitude = obter_latitude_longitude_altitude(nome_cidade)
+
+    # Obter os valores do surface_azimuth do usuário
+    valores_azimute = input("Digite os valores do surface azimuth (ângulo de azimute do plano horizontal, separados por vírgula): ")
+    valores_azimute = [float(val.strip()) for val in valores_azimute.split(',')]
+
+    # Criar um intervalo de datas para o ano de 2022
+    data_inicio = "2022-01-01"
+    data_fim = "2022-12-31"
+    datas_ano_2022 = pd.date_range(start=data_inicio, end=data_fim, freq='D')
+
+    # Calcular a média diária da irradiação solar para cada dia de 2022 usando uma resolução de 1 hora
+    resultados = []
+    for data in datas_ano_2022:
+        for surface_azimuth in valores_azimute:
+            irradiacao_diaria = []
+            intervalo_tempo = pd.date_range(data + pd.Timedelta(hours=0), data + pd.Timedelta(hours=23), freq='1H')
+            for data_hora in intervalo_tempo:
+                irradiacao = calcular_irradiacao_solar(latitude, longitude, altitude, data_hora, surface_azimuth)
+                irradiacao_diaria.append(irradiacao.item())
+
+            media_irradiacao_diaria = sum(irradiacao_diaria) / len(irradiacao_diaria)
+            resultados.append({'Data': data, 'Surface_Azimuth': surface_azimuth, 'Media_Irradiacao': media_irradiacao_diaria})
+
+    # Criar um DataFrame com os resultados
+    df_resultados = pd.DataFrame(resultados)
+
+    # Exibir as médias diárias da irradiação solar para cada combinação de surface_azimuth e dia de 2022
+    print(df_resultados)
+
+    # Calcular a média anual da irradiação solar para cada valor de surface_azimuth em 2022
+    media_anual_por_azimute = df_resultados.groupby('Surface_Azimuth')['Media_Irradiacao'].mean()
+    print("\nMédia anual da irradiação solar por valor de surface_azimuth em 2022:")
+    print(media_anual_por_azimute)
